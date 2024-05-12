@@ -20,7 +20,7 @@ import passport from "passport";
 
 const router = express.Router();
 
-router.post("/register", registerController);
+router.post("/register", registerController); 
 
 // Login
 router.post("/login", loginController);
