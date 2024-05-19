@@ -1,195 +1,271 @@
-
 import userModel from "../models/userModel.js";
 import { hashPassword } from "./../helpers/authHelper.js";
 import JWT from "jsonwebtoken";
 import { comparePassword } from "./../helpers/authHelper.js";
 import nodemailer from "nodemailer"; // Import nodemailer for email sending
-import { generatePasswordResetToken, validatePasswordResetToken } from "../helpers/authHelper.js";
+import {
+  generatePasswordResetToken,
+  validatePasswordResetToken,
+} from "../helpers/authHelper.js";
 import env from "dotenv";
 
 export const registerController = async (req, res) => {
-    try {
-        const { name, email, password, phone, address } = req.body;
-        if (!name || !email || !password || !phone || !address) {
-            return res.status(400).send({
-                success: false,
-                message: "All fields are required" });
-        } 
-
-        const userExist = await userModel.findOne({email});
-        if (userExist) {
-            return res.status(400).send({
-                success: false,
-                message: "User already exists" });
-        }
-
-        const hashedPassword = await hashPassword(password);
-        const user = await new userModel({
-            name,
-            email,
-            password: hashedPassword,
-            phone,
-            address,
-        }).save();
-
-        res.status(201).send({
-            success: true,
-            message: "User registered successfully" ,
-            user,
-        })
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).send({ 
-            success: false,
-            message: "Error in Registration" });
+  try {
+    const { name, email, password, phone, address } = req.body;
+    if (!name || !email || !password || !phone || !address) {
+      return res.status(400).send({
+        success: false,
+        message: "All fields are required",
+      });
     }
-};
 
+    const userExist = await userModel.findOne({ email });
+    if (userExist) {
+      return res.status(400).send({
+        success: false,
+        message: "User already exists",
+      });
+    }
+
+    const hashedPassword = await hashPassword(password);
+    const user = await new userModel({
+      name,
+      email,
+      password: hashedPassword,
+      phone,
+      address,
+    }).save();
+
+    res.status(201).send({
+      success: true,
+      message: "User registered successfully",
+      user,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error in Registration",
+    });
+  }
+};
 
 export const loginController = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password) {
-            return res.status(400).send({
-                success: false,
-                message: "All fields are required" });
-        }
-        const user = await userModel.findOne({email});
-        if (!user) {
-            return res.status(400).send({
-                success: false,
-                message: "User does not exist" });
-        }
-        const match = await comparePassword(password, user.password);
-        if(!match){
-            return res.status(400).send({
-                success: false,
-                message: "Invalid credentials"  });
-        }
-
-        // token
-        const token =  await JWT.sign({ _id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: "7d",
-        });
-        res.status(200).send({
-            success: true,
-            message: "User logged in successfully",
-            token,
-            user: {
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                address: user.address,
-            },
-            token,
-        });
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).send({ 
-            success: false,
-            message: "Error in Login" });
-            error;
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).send({
+        success: false,
+        message: "All fields are required",
+      });
     }
+
+    const user = await userModel.findOne({ email });
+
+    if (!user) {
+      return res.status(400).send({
+        success: false,
+        message: "User does not exist",
+      });
+    }
+
+    if (user.active === false) {
+      return res.status(400).send({
+        success: false,
+        message: "User status is deactivated",
+      });
+    }
+
+    const match = await comparePassword(password, user.password);
+    if (!match) {
+      return res.status(400).send({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
+
+    // Generate token
+    const token = await JWT.sign({ _id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).send({
+      success: true,
+      message: "User logged in successfully",
+      token,
+      user: {
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error in Login",
+    });
+  }
 };
 
+// export const loginController = async (req, res) => {
+//   try {
+//     const { email, password } = req.body;
+//     if (!email || !password) {
+//       return res.status(400).send({
+//         success: false,
+//         message: "All fields are required",
+//       });
+//     }
+//     const user = await userModel.findOne({ email });
+
+//     if (user.active === false) {
+//       return res.status(400).send({
+//         success: false,
+//         message: "User status is deactivated",
+//       });
+//     }
+
+//     // console.log("user active", user.active);
+
+//     if (!user) {
+//       return res.status(400).send({
+//         success: false,
+//         message: "User does not exist",
+//       });
+//     }
+//     const match = await comparePassword(password, user.password);
+//     if (!match) {
+//       return res.status(400).send({
+//         success: false,
+//         message: "Invalid credentials",
+//       });
+//     }
+
+//     // token
+//     const token = await JWT.sign({ _id: user._id }, process.env.JWT_SECRET, {
+//       expiresIn: "7d",
+//     });
+//     res.status(200).send({
+//       success: true,
+//       message: "User logged in successfully",
+//       token,
+//       user: {
+//         name: user.name,
+//         email: user.email,
+//         phone: user.phone,
+//         address: user.address,
+//       },
+//       token,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send({
+//       success: false,
+//       message: "Error in Login",
+//     });
+//     error;
+//   }
+// };
 
 export const updateController = async (req, res) => {
-    try {
-      const { userId } = req.params; // Extract user ID from URL params
-      const { name, email, password, phone, address } = req.body;
-  
-      // Check if user exists (avoid unnecessary database interaction)
-      const existingUser = await userModel.findById(userId);
-      if (!existingUser) {
-        return res.status(400).send({
-          success: false,
-          message: "User not found",
-        });
-      }
-  
-      // Update logic (handle potential password change)
-      let updatedUser = existingUser;
-      if (name) updatedUser.name = name;
-      if (email) {
-        // Check for duplicate email before update (avoid conflicts)
-        const duplicateEmailUser = await userModel.findOne({ email });
-        if (duplicateEmailUser && duplicateEmailUser._id.toString() !== userId) {
-          return res.status(400).send({
-            success: false,
-            message: "Email already exists",
-          });
-        }
-        updatedUser.email = email;
-      }
-      if (password) {
-        // Validate incoming password before hashing (optional security)
-        // ... (implement password validation logic if needed)
-        updatedUser.password = await hashPassword(password);
-      }
-      if (phone) updatedUser.phone = phone;
-      if (address) updatedUser.address = address;
-  
-      // Update user in database
-      const updated = await updatedUser.save();
-  
-      // Generate new token (optional, consider stateless approach)
-      const token = JWT.sign({ _id: updated._id }, process.env.JWT_SECRET, {
-        expiresIn: "7d",
-      });
-  
-      res.status(200).send({
-        success: true,
-        message: "User information updated successfully",
-        user: {
-          name: updated.name,
-          email: updated.email,
-          phone: updated.phone,
-          address: updated.address,
-        },
-        ...(token && { token }), // Include token only if desired
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).send({
+  try {
+    const { userId } = req.params; // Extract user ID from URL params
+    const { name, email, password, phone, address } = req.body;
+
+    // Check if user exists (avoid unnecessary database interaction)
+    const existingUser = await userModel.findById(userId);
+    if (!existingUser) {
+      return res.status(400).send({
         success: false,
-        message: "Error updating user information",
+        message: "User not found",
       });
     }
-  };
 
-  export const deleteController = async (req, res) => {
-    try {
-      const { userId } = req.params; // Extract user ID from URL params
-  
-      // Check if user exists (avoid unnecessary database interaction)
-      const user = await userModel.findById(userId);
-      if (!user) {
+    // Update logic (handle potential password change)
+    let updatedUser = existingUser;
+    if (name) updatedUser.name = name;
+    if (email) {
+      // Check for duplicate email before update (avoid conflicts)
+      const duplicateEmailUser = await userModel.findOne({ email });
+      if (duplicateEmailUser && duplicateEmailUser._id.toString() !== userId) {
         return res.status(400).send({
           success: false,
-          message: "User not found",
+          message: "Email already exists",
         });
       }
-  
-      // Delete user (consider soft delete if needed)
-      await user.deleteOne();  // Use .deleteOne() for single document deletion
-  
-      res.status(200).send({
-        success: true,
-        message: "User deleted successfully",
-      });
-    } catch (error) {
-      console.error(error);
-      res.status(500).send({
+      updatedUser.email = email;
+    }
+    if (password) {
+      // Validate incoming password before hashing (optional security)
+      // ... (implement password validation logic if needed)
+      updatedUser.password = await hashPassword(password);
+    }
+    if (phone) updatedUser.phone = phone;
+    if (address) updatedUser.address = address;
+
+    // Update user in database
+    const updated = await updatedUser.save();
+
+    // Generate new token (optional, consider stateless approach)
+    const token = JWT.sign({ _id: updated._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.status(200).send({
+      success: true,
+      message: "User information updated successfully",
+      user: {
+        name: updated.name,
+        email: updated.email,
+        phone: updated.phone,
+        address: updated.address,
+      },
+      ...(token && { token }), // Include token only if desired
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error updating user information",
+    });
+  }
+};
+
+export const deleteController = async (req, res) => {
+  try {
+    const { userId } = req.params; // Extract user ID from URL params
+
+    // Check if user exists (avoid unnecessary database interaction)
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(400).send({
         success: false,
-        message: "Error deleting user",
+        message: "User not found",
       });
     }
-  };
 
+    // Delete user (consider soft delete if needed)
+    await user.deleteOne(); // Use .deleteOne() for single document deletion
 
-  // ... other auth controller functions (register, login etc.)
+    res.status(200).send({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error deleting user",
+    });
+  }
+};
+
+// const bcrypt = require("bcrypt"); // Import bcrypt for hashing passwords
+// const userModel = require("../models/user"); // Import the user model
+
+// ... other auth controller functions (register, login etc.)
 
 export const forgotPasswordController = async (req, res) => {
   const { email } = req.body;
@@ -216,6 +292,7 @@ export const forgotPasswordController = async (req, res) => {
 
     // Create email content
     const resetUrl = `http://localhost:8080/api/v1/auth/reset-password/${resetToken}`; // Replace with your reset password URL
+    // const resetUrl = `http://localhost:8080/update-password/${resetToken}`; // Replace with your reset password URL
     const message = `
       You have requested a password reset for your account.
       Please click on the following link to reset your password within 1 hour:
@@ -234,16 +311,15 @@ export const forgotPasswordController = async (req, res) => {
     // });
 
     var transporter = nodemailer.createTransport({
-      host: "live.smtp.mailtrap.io",
-      port: 2525,
+      service: "gmail",
+      host: "smtp.mailtrap.io",
+      port: 587,
+      secure: false,
       auth: {
-        user: "api",
-        pass: "fd839979677e51395ec842d5bb68fe22"
-      }
+        user: "awaismaznoor@gmail.com",
+        pass: "agbj hpqn gyfp llge",
+      },
     });
-
-    
-
 
     // var transporter = nodemailer.createTransport({
     //   host: "sandbox.smtp.mailtrap.io",
@@ -254,9 +330,8 @@ export const forgotPasswordController = async (req, res) => {
     //   }
     // });
 
-
     const mailOptions = {
-      from: '"BSAT" musmanfi06@gmail.com', // Replace with your sender email
+      from: '"BSAT" awaismaznoor@gmail.com', // Replace with your sender email
       to: user.email,
       subject: "Password Reset Request",
       text: message,
@@ -329,25 +404,138 @@ export const resetPasswordController = async (req, res) => {
 
 export const testController = async (req, res) => {
   try {
-    res.send("Test Controller")
+    res.send("Test Controller");
   } catch (error) {
     console.log(error);
     res.send({ error });
-  };
+  }
 };
 
 // // authController.js
 
 // // Handles successful authentication
-export const  onSuccess = (req, res)=> {
+export const onSuccess = (req, res) => {
   // Successful authentication, redirect home.
-  console.log("here")
-  res.redirect('/');
-}
+  console.log("here");
+  res.redirect("/");
+};
 
 // // Handles failed authentication
-export const  onFailure = (req, res)=> {
-  console.log("not here")
+export const onFailure = (req, res) => {
+  console.log("not here");
   // Handle failure case here, possibly redirect to a custom failure page
-  res.redirect('/login?error=Authentication Failed');
-}
+  res.redirect("/login?error=Authentication Failed");
+};
+
+// authController.js
+export const adminDeleteUserController = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check if the user exists
+    const user = await userModel.findById(userId);
+
+    console.log(user);
+    if (!user) {
+      return res.status(400).send({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Delete the user
+    await user.deleteOne();
+
+    res.status(200).send({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error deleting user",
+    });
+  }
+};
+
+// authController.js
+export const adminDeleteAllUsersController = async (req, res) => {
+  try {
+    // Find and delete all users
+    await userModel.deleteMany({});
+
+    res.status(200).send({
+      success: true,
+      message: "All users deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error deleting all users",
+    });
+  }
+};
+
+// authController.js
+export const adminDeactivateUserController = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check if user exists
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(400).send({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Deactivate user
+    user.active = false;
+    await user.save();
+
+    res.status(200).send({
+      success: true,
+      message: "User deactivated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error deactivating user",
+    });
+  }
+};
+
+// authController.js
+export const adminReactivateUserController = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Check if user exists
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(400).send({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Reactivate user
+    user.active = true;
+    await user.save();
+
+    res.status(200).send({
+      success: true,
+      message: "User reactivated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).send({
+      success: false,
+      message: "Error reactivating user",
+    });
+  }
+};
