@@ -11,8 +11,8 @@ import env from "dotenv";
 
 export const registerController = async (req, res) => {
   try {
-    const { name, email, password, phone, address } = req.body;
-    if (!name || !email || !password || !phone || !address) {
+    const { name, email, password} = req.body;
+    if (!name || !email || !password) {
       return res.status(400).send({
         success: false,
         message: "All fields are required",
@@ -32,8 +32,7 @@ export const registerController = async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      phone,
-      address,
+  
     }).save();
 
     res.status(201).send({
@@ -96,8 +95,7 @@ export const loginController = async (req, res) => {
       user: {
         name: user.name,
         email: user.email,
-        phone: user.phone,
-        address: user.address,
+
       },
     });
   } catch (error) {
